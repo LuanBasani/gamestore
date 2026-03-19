@@ -1,31 +1,26 @@
-## estágio de compilação
-## Uma imagem do linux para compilar o projeto
-FROM ubuntu:latest AS build
+# Estágio de compilação
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
 
-## Instalar o JAVA 21
-RUN apt-get update
-RUN apt-get install -y openjdk-21-jdk
+WORKDIR /app
 
-## instalar o maven
-RUN apt-get install -y maven
+# Copy do pom.xml primeiro (cache layer)
+COPY pom.xml .
 
-## COPY do projeto pra dentro do container
-COPY . .
+# Copy do código fonte
+COPY src ./src
 
-## compilar o projeto com o maven
+# Compilar o projeto
+RUN mvn clean package -DskipTests
 
-RUN mvn clean install
+# Estágio de execução
+FROM eclipse-temurin:21-jre-alpine
 
-## Execução do Projeto
-FROM eclipse-temurin:21-jdk-jammy
-
-# Expor a porta 8080
+WORKDIR /app
 
 EXPOSE 8080
 
-## Copiar o arquivo JAR da compilação para o container de Execução
+# Copiar o JAR do estágio de build
+COPY --from=build /app/target/gamestore-0.0.1-SNAPSHOT.jar app.jar
 
-COPY --from=build /target/gamestore-0.0.1-SNAPSHOT.jar app.jar
-
-## Definir o comando de inicialização do container
-ENTRYPOINT [ "java","-jar","app.jar" ]
+# Iniciar a aplicação
+ENTRYPOINT ["java", "-jar", "app.jar"]
